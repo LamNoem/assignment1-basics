@@ -1,7 +1,15 @@
-import regex as re
+# import regex as re
 from collections import defaultdict
 import json
 import base64
+
+
+from tqdm import tqdm
+import os
+
+import numpy as np
+
+import regex as re
 
 
 
@@ -46,6 +54,7 @@ class BPETokenizer:
     
     def pretokenize(self, text):
         #pretokenize
+        
         PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
         matches = re.finditer(PAT, text)
         tokens = [match.group() for match in matches]
@@ -165,7 +174,12 @@ class BPETokenizer:
     def encode(self, text :str):
 
         #pretokenize
-        PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
+        import re  # instead of regex
+        PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\w+| ?\d+| ?[^\s\w\d]+|\s+(?!\S)|\s+"""
+
+
+        # PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
         matches = re.finditer(PAT, text)
         tokens = [match.group() for match in matches]
         #encode pretokens to math merge list
@@ -189,6 +203,13 @@ class BPETokenizer:
 
         return pretoken_en
     
+
+    
+
+    
+
+    
+    
     def decode(self, ids: list[int]):
         string = ""
         for i in ids:
@@ -202,14 +223,22 @@ class BPETokenizer:
     
     def encode_iterable(self, file_path, file_name = None):
 
-        with open(file_path, 'r', encoding="utf-8") as file:
+        file_size = os.path.getsize(file_path)  # total file size in bytes
+
+        with open(file_path, 'r', encoding="utf-8") as file, tqdm(total=file_size, unit='B', unit_scale=True, desc="Encoding file") as pbar:
             # Read each line in the file
             for line in file:
             # Print each line
                 tokens = self.encode(line)
-                for tok in tokens:
-                    yield tok
+                # for tok in tokens:
+                #     yield tok
+                yield tokens
 
+                pbar.update(len(line.encode('utf-8')))  # bytes read
+
+
+                
+            
     def get_compression_ratio(string: str, indices: list[int]):
         num_bts = len(bytes(string, encoding="utf-8"))
         num_tok = len(indices)

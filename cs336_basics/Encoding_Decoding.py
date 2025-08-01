@@ -42,19 +42,46 @@ tokenizer = BPETokenizer(special_tokens=["<|endoftext|>"])
 
 #ENCODING Decoding
 ##################################################
-print("aayo")
+# print("aayo")
 tokenizer = BPETokenizer.from_files("data/owt_32k_merges_dict.json", "data/owt_32k_vocab.json", "data/owt_32k_merges.json")
-lst = tokenizer.encode(" ")
-print(lst)
-string = tokenizer.decode(lst)
-print(string)
-print("######")
+# lst = tokenizer.encode(" ")
+# print(lst)
+# string = tokenizer.decode(lst)
+# print(string)
+# print("######")
 
-cot = 0
+# cot = 0
 
-for i in tokenizer.encode_iterable("data/story.txt"):
-         cot +=1
-         print(i)
-         print(tokenizer.decode([i]))
-         if cot > 40:
-             break
+# for i in tokenizer.encode_iterable("data/story.txt"):
+#          cot +=1
+#          print(i)
+#          print(tokenizer.decode([i]))
+#          if cot > 40:
+#              break
+         
+
+#########################################
+
+
+import json
+
+bad_lines = []
+
+with open("data/tiny_stories_ids.jsonl", "r") as f:
+    
+    count = 0
+    for i, line in enumerate(f, start=1):
+
+        if count == 15:
+            break
+        
+        try:
+            obj = json.loads(line)
+            print(obj)
+            print(tokenizer.decode(obj))
+            count = count + 1
+        except json.JSONDecodeError as e:
+            print(f"Error on line {i}: {e}")
+            bad_lines.append((i, line.strip()))
+            
+        
