@@ -27,30 +27,14 @@ from torch.optim import AdamW
 from tqdm import tqdm
 
 
-def read_lines(file_path):
-    file_size = os.path.getsize(file_path)
-    with open(file_path, 'r', encoding="utf-8") as file, tqdm(total=file_size, unit='B', unit_scale=True, desc="Reading file") as pbar:
-        for line in file:
-            pbar.update(len(line.encode('utf-8')))
-            yield line
 
-def encode_wrapper(args):
-    tokenizer, line = args
-    return tokenizer.encode(line)
 
-from multiprocessing import Pool, cpu_count
 
-def parallel_encode(tokenizer, file_path):
-    lines = read_lines(file_path)
-    args = ((tokenizer, line) for line in lines)
 
-    with Pool() as pool:
-        for tokens in tqdm(pool.imap(encode_wrapper, args, chunksize=100), desc="Tokenizing", unit="lines"):
-            yield tokens
 
 #--------------------------------------------------
 global_tokenizer = None
-
+#dont really understand, probably needed this for when i tried parallel encoding
 def init_tokenizer():
     global global_tokenizer
     from BPETokenizer import BPETokenizer
@@ -60,11 +44,13 @@ def init_tokenizer():
         "data/owt_32k_merges.json"
     )
 
+#identify size of text for progress bar
 def count_lines(file_path):
     with open(file_path, 'r', encoding="utf-8") as f:
+        #sum 1 for each line
         return sum(1 for _ in f)
 
-
+#yields blocks of text
 def read_blocks(file_path, block_size=50):
     
     with open(file_path, 'r', encoding="utf-8") as file:
@@ -79,7 +65,7 @@ def read_blocks(file_path, block_size=50):
             print("Yielding final block")
             yield block
 
-
+#ecodes blocks of text
 def encode_block(lines):
     from BPETokenizer import BPETokenizer
     tokenizer = BPETokenizer.from_files(
@@ -92,15 +78,7 @@ def encode_block(lines):
 
 
 
-def parallel_encode_block(file_path):
-    total_lines = count_lines(file_path)
-    estimated_blocks = total_lines // 1000 + 1
-    blocks = read_blocks(file_path)
 
-    with Pool(cpu_count(), initializer=init_tokenizer) as pool:
-        for token_blocks in tqdm(pool.imap(encode_block, blocks, chunksize=10), total=estimated_blocks, desc="Tokenizing", unit="block"):
-            for tokens in token_blocks:
-                yield tokens
 
 
 
@@ -109,15 +87,23 @@ if __name__ == "__main__":
     import json
     from tqdm import tqdm
     #to train script
+    #load tokenizer
     tokenizer = BPETokenizer.from_files("data/owt_32k_merges_dict.json", "data/owt_32k_vocab.json", "data/owt_32k_merges.json")
 
 
     total_lines = count_lines("data/TinyStoriesV2-GPT4-train.txt")
+    #50 is the block size
     estimated_blocks = total_lines // 50 + 1
 
+    #read_block yields blocks of text
+
     with open("data/tiny_stories_ids_2.jsonl", "w") as f:
+        #yield blocks
         for block in tqdm(read_blocks("data/TinyStoriesV2-GPT4-train.txt"), total=estimated_blocks, desc="Encoding blocks"):
+            #encode blocks
             token_block = encode_block(block)
+            #add tokens to a json file as you go
+            #this way dont have to encode entire file for a result
             for tokens in token_block:
                 json.dump(tokens, f)
                 f.write("\n")

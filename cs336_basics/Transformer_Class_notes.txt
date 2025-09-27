@@ -1,0 +1,89 @@
+Ah, brilliant question! You're noticing something subtle but important: even though vocab_size and max_seq_len are used to define the embedding layers, they don’t directly affect the shape of x once the embeddings are applied.
+
+Let’s break down why that is:
+
+🎯 What Determines the Shape of x?
+python
+x = self.token_embed(input_ids) + self.pos_embed(pos)
+The shape of x is determined by the shape of the input tensors (input_ids and pos) and the embedding dimension (d_model), not by vocab_size or max_seq_len.
+
+✅ So:
+input_ids.shape = (batch_size, seq_len)
+
+self.token_embed(input_ids).shape = (batch_size, seq_len, d_model)
+
+self.pos_embed(pos).shape = (batch_size, seq_len, d_model) or (1, seq_len, d_model)
+
+➡️ Therefore:
+
+python
+x.shape = (batch_size, seq_len, d_model)
+🧠 What Do vocab_size and max_seq_len Actually Do?
+They define the range of valid indices for the embedding lookup:
+
+vocab_size: You can only pass token IDs from 0 to vocab_size - 1.
+
+max_seq_len: You can only pass position indices from 0 to max_seq_len - 1.
+
+They don’t change the shape of the output, they just define the size of the lookup table.
+
+🧮 Analogy: Think of Embedding as a Dictionary
+Imagine:
+
+python
+word_to_vector = {
+    0: [0.1, 0.2, ..., 0.512],
+    1: [0.3, 0.4, ..., 0.512],
+    ...
+    31999: [0.9, 0.8, ..., 0.512]
+}
+You can look up any word ID from 0 to 31999, but the shape of the result depends on how many words you look up (i.e., batch_size × seq_len), not how many words are in the dictionary.
+
+🔍 Summary
+Parameter	        Role	                        Affects Shape of x?
+vocab_size	        Size of token embedding table	    ❌ No
+max_seq_len	        Size of position embedding table	❌ No
+d_model	            Embedding vector size	            ✅ Yes
+input_ids	        Actual input tokens	                ✅ Yes
+
+-------------------------------------------------------------------------
+loss = loss_fn(logits.view(-1, logits.size(-1)), targets.view(-1))
+This computes the cross-entropy loss between the model’s predictions (logits) and the true next tokens (targets).
+
+🧠 What Are logits and targets?
+Assume:
+
+logits.shape = (batch_size, seq_len, vocab_size)
+
+targets.shape = (batch_size, seq_len)
+
+Each token in the sequence has a prediction over the entire vocabulary.
+
+🔧 Why Reshape?
+🔁 logits.view(-1, logits.size(-1))
+logits.size(-1) is vocab_size
+
+.view(-1, vocab_size) flattens the first two dimensions (batch_size × seq_len)
+
+Resulting shape: (batch_size × seq_len, vocab_size)
+
+This gives you one row per token prediction.
+
+🔁 targets.view(-1)
+Flattens targets from (batch_size, seq_len) to (batch_size × seq_len,)
+
+Each entry is the true token ID that the model should predict.
+
+🎯 Why This Is Needed
+nn.CrossEntropyLoss() expects:
+
+python
+input:  (N, C)  → predicted logits (N samples, C classes)
+target: (N,)    → true class indices
+So you must reshape:
+
+logits to (N, vocab_size)
+
+targets to (N,)
+
+Where N = batch_size × seq_len
