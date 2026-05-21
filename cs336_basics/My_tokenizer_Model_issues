@@ -1,0 +1,21 @@
+Going over this project, a few issues:
+
+Possible vocabulary off-by-one issue:
+
+vocab_count = 255 (0 indexed should actually be 256), then add special tokens by incrementing before assigning. That is okay for the first special token becoming 256, but then training continues while self.vocab_count < voc_size, so with voc_size=32000, the final assigned token can become 32000. 
+A PyTorch embedding with vocab_size=32000 only supports IDs 0–31999. I messed up my 0 index or that count != index so silly.
+The encode loop is inefficient:
+
+In encode(), loop through every merge rule and repeatedly rebuild the whole pretoken_en list inside nested loops. slow.
+
+Training and encoding regex patterns differ:
+
+Training uses the regex package with Unicode classes like \p{L} and \p{N}, while encode() switches to Python’s built-in re and uses \w/\d. BPE training and BPE encoding should use the same pretokenization rule. But less serious if input is always simple english.
+
+No causal attention mask
+
+Regex mismatch: real tokenizer correctness issue, especially outside simple English.
+
+Vocabulary off-by-one: only big if token ID 32000 appears and model vocab size is 32000.
+
+Limited training compute / small training run: likely a big reason output quality was poor.
